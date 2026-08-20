@@ -1,0 +1,60 @@
+# Baut die Seite und veröffentlicht sie auf GitHub Pages.
+#
+# Einmalig nötig: Repo → Settings → Pages → Source auf "GitHub Actions"
+# stellen. Ohne das schlägt der deploy-Schritt fehl.
+name: Seite veröffentlichen
+
+on:
+  push:
+    branches: [claude/antipode-browser-game-mtxhz6]
+  workflow_dispatch: # erlaubt manuelles Auslösen im Actions-Tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Läuft ein Deploy schon, wird es abgebrochen – der neuere Stand gewinnt.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Geometrie prüfen
+        run: node --experimental-strip-types src/lib/geo.test.mjs
+
+      - run: npm run lint
+
+      - name: Bauen
+        # Pages liefert unter /<repo-name>/ aus. Der Name wird aus
+        # GITHUB_REPOSITORY abgeleitet, damit ein Umbenennen nichts bricht.
+        run: |
+          export VITE_BASE="/${GITHUB_REPOSITORY#*/}/"
+          echo "Basispfad: $VITE_BASE"
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

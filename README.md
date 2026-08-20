@@ -19,6 +19,42 @@ node --experimental-strip-types src/lib/geo.test.mjs   # Geometrie prüfen
 
 Kein Backend, keine API-Schlüssel. Deploybar als statische Site.
 
+## Veröffentlichen
+
+Reine statische Seite – kein Backend, keine Schlüssel, kein Server nötig.
+
+**GitHub Pages** ist vorbereitet: `.github/workflows/deploy.yml` baut und
+veröffentlicht bei jedem Push. Einmalig muss unter *Settings → Pages* die
+Quelle auf **GitHub Actions** gestellt werden, sonst schlägt der letzte
+Schritt fehl. Die Seite liegt danach unter
+`https://<name>.github.io/whatsunderme/`.
+
+**Vercel oder Netlify**: Repo verbinden, fertig. Beide erkennen Vite von
+selbst (Build `npm run build`, Verzeichnis `dist`). Hier ist nichts
+einzustellen – der Basispfad bleibt `/`.
+
+**Ohne alles**: `npm run build:standalone` erzeugt eine einzelne HTML-Datei
+mit allem darin. Die lässt sich verschicken oder irgendwo hinlegen.
+
+Pages liefert unter `/<repo-name>/` aus, Vercel und Netlify unter `/`.
+Deshalb ist der Basispfad über `VITE_BASE` einstellbar; nur der
+Pages-Workflow setzt ihn.
+
+### Was bei echtem Publikum zu beachten ist
+
+Die genutzten Dienste sind kostenlos, aber nicht für Dauerlast gedacht:
+
+- **OpenTopoData/GEBCO** erlaubt **100 Anfragen pro Tag**. Das ist die erste
+  Grenze, die fällt. Danach steht bei Gegenpunkten im Meer "Tiefe unbekannt" –
+  alles andere funktioniert weiter.
+- **Nominatim** erlaubt max. 1 Anfrage/s und untersagt schwere automatisierte
+  Nutzung. Ergebnisse werden gecacht und gedrosselt; bei nennenswertem Verkehr
+  wäre ein eigener Dienst fällig.
+- **Photon** ist großzügiger, bittet aber ebenfalls um faire Nutzung.
+
+Fällt einer davon aus, bleibt die Seite bedienbar: die Suche greift auf das
+mitgelieferte Ortsverzeichnis zurück, Land oder Wasser wird gerechnet.
+
 ## Wie der Gegenpunkt bestimmt wird
 
 ```
