@@ -33,15 +33,22 @@ interface Place {
  * ergeben.
  */
 export function normalizeName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/ß/g, 'ss')
-    .replace(/ae/g, 'a')
-    .replace(/oe/g, 'o')
-    .replace(/ue/g, 'u')
-    .trim()
+  return (
+    value
+      .normalize('NFD')
+      // Kombinierende Zeichen bewusst als \u-Escape, nicht als Literal: Wird
+      // die Datei ohne Zeichensatz-Angabe ausgeliefert (etwa per Doppelklick
+      // über file://), liest der Browser sie als Latin-1 – ein literaler
+      // Bereich wird dann zu einem ungültigen Ausdruck und reißt die ganze
+      // Anwendung mit.
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/ß/g, 'ss')
+      .replace(/ae/g, 'a')
+      .replace(/oe/g, 'o')
+      .replace(/ue/g, 'u')
+      .trim()
+  )
 }
 
 let cache: Place[] | null = null
