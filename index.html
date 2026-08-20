@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0b1a" />
+    <meta
+      name="description"
+      content="ANTIPODE – Bohr dich von deiner Haustür senkrecht durch die Erde und schau, wo du auf der anderen Seite rauskommst."
+    />
+    <title>ANTIPODE — Bohr dich durch die Erde</title>
+
+    <!-- Schriften liegen lokal in /public/fonts – siehe index.css. Preload,
+         damit Headline und HUD nicht kurz in der Fallback-Schrift aufblitzen. -->
+    <link
+      rel="preload"
+      href="/fonts/archivo-black-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/space-grotesk-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
