@@ -1,101 +1,104 @@
-# ANTIPODE
+# Was ist unter mir?
 
-Ein Browser-Game: Adresse eingeben, senkrecht durch die Erde bohren, im
-Querschnitt zusehen, durch welche Gesteinsschichten es geht – und schauen, wo
-man auf der anderen Seite des Planeten wieder rauskommt.
+Adresse eingeben, auf **Berechnen** drücken: Der Globus wird durchscheinend,
+ein roter Strich fährt von der Adresse senkrecht durch den Erdmittelpunkt, und
+am anderen Ende steht auf den Punkt genau, wo man wieder rauskäme.
 
-Meistens im Ozean. Das ist der Witz.
-
-## Stand
-
-Schritt 1 von 10 ist fertig: Projekt-Setup, Screen-Routing und Design-System.
-Die Screens für Globus, Bohrung und Ergebnis sind als Platzhalter angelegt, der
-komplette Ablauf lässt sich aber schon durchklicken.
-
-| # | Schritt | Status |
-|---|---|---|
-| 1 | Setup, Routing, Design-System | ✅ |
-| 2 | Geocoding-Service + Autocomplete | offen |
-| 3 | Schichtmodell mit Temperatur-/Druck-Interpolation | offen |
-| 4 | Querschnitt-Canvas, nicht-lineare Tiefenskala | offen |
-| 5 | Bohr-Animation + HUD | offen |
-| 6 | Three.js-Globus mit stilisiertem Shader | offen |
-| 7 | Antipode-Logik + Ergebnis-Screen | offen |
-| 8 | Game-Layer: Hitze, Bohrkerne, Achievements | offen |
-| 9 | Sound (Web Audio, synthetisch) | offen |
-| 10 | Polish: Partikel, Screenshake, Transitions | offen |
+Meistens im Meer. Rund 71 % aller Landflächen haben Wasser als Gegenpunkt.
 
 ## Entwicklung
 
 ```bash
 npm install
-npm run dev      # Dev-Server
-npm run build    # Production-Build nach dist/
+npm run dev              # Dev-Server
+npm run build            # Production-Build nach dist/
+npm run build:standalone # alles in eine einzelne HTML-Datei
 npm run lint
-
-# Alles in eine einzige HTML-Datei backen (CSS, JS und Schriften inline).
-# Lässt sich ohne Server öffnen und verschicken – praktisch zum Drüberschauen.
-npm run build:standalone
+node --experimental-strip-types src/lib/geo.test.mjs   # Geometrie prüfen
 ```
 
-Kein Backend, keine API-Keys. Deploybar als statische Site.
+Kein Backend, keine API-Schlüssel. Deploybar als statische Site.
+
+## Wie der Gegenpunkt bestimmt wird
+
+```
+lat' = −lat
+lon' = lon > 0 ? lon − 180 : lon + 180
+```
+
+Das ist reine Rechnung, kein Dienst wird dafür gefragt – die Koordinaten
+stimmen also auch dann, wenn gerade keine API erreichbar ist.
+
+`src/lib/geo.test.mjs` prüft das gegen bekannte Punkte. Die wichtigste Zusage
+dort: der Ortsvektor des Gegenpunkts ist exakt der negierte Ortsvektor des
+Startpunkts. Nur deshalb geht der rote Strich wirklich durch den Mittelpunkt
+und nicht knapp daran vorbei.
+
+Die Umrechnung Kugelkoordinaten → Szene muss dabei exakt zur UV-Abbildung von
+`THREE.SphereGeometry` passen, sonst sitzt der Marker neben dem Ort. Die
+Herleitung steht als Kommentar an `latLonToVector3`.
+
+## Datenquellen
+
+Alle frei und ohne Schlüssel. Jeder Aufruf hat 5 s Zeitlimit und einen
+Rückfallplan – die Oberfläche bleibt nie hängen, weil ein Dienst zickt.
+
+| Zweck | Dienst | Hinweis |
+|---|---|---|
+| Adresssuche | [Photon](https://photon.komoot.io) | 300 ms Debounce, veraltete Anfragen werden abgebrochen |
+| Ort am Gegenpunkt | [Nominatim](https://nominatim.openstreetmap.org) | max. 1 Anfrage/s, gedrosselt und gecacht |
+| Höhe über NN | [Open-Meteo](https://open-meteo.com) | liefert über Wasser 0 |
+| Wassertiefe | [GEBCO via OpenTopoData](https://www.opentopodata.org) | max. 1 Anfrage/s, 100/Tag – wird nur bei Wasser gefragt |
+
+Ergebnisse landen in `localStorage`. **Fehlgeschlagene** Abfragen werden
+bewusst *nicht* gecacht: eine kurze Störung für immer festzuschreiben wäre
+schlimmer als eine zweite Anfrage.
+
+Der Gegenpunkt kennt drei Zustände, die auseinandergehalten werden:
+
+- **benannter Ort** – der seltene Fall, dass drüben Land ist
+- **offenes Meer** – der Dienst kennt den Punkt, dort ist schlicht nichts
+- **keine Antwort** – der Dienst war nicht erreichbar; dann wird weder Land
+  noch Wasser behauptet, nur die gerechneten Koordinaten stehen da
+
+## Globus
+
+Die Erdtextur wird beim Start aus Vektordaten gezeichnet
+([Natural Earth 1:110 m](https://www.naturalearthdata.com) über
+`world-atlas`), nicht aus einer Bilddatei – so passen die Farben zur Palette
+und es ist kein Bild-Asset nötig.
+
+Beim Aufdecken wechselt das Kugelmaterial die Betriebsart: undurchsichtig
+zeichnet es nur Vorderseiten mit Tiefenpuffer, durchscheinend beide Seiten
+ohne. Ohne diese Unterscheidung zeichnet die abgewandte Hälfte über die
+zugewandte und man schaut versehentlich auf die Rückseite der Erde.
 
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS v4 · Zustand · Three.js
-(`@react-three/fiber`) für den Globus · Canvas 2D für den Querschnitt ·
-Web Audio API für den Sound.
+Vite · React 19 · TypeScript · Tailwind CSS v4 · Zustand ·
+Three.js über `@react-three/fiber`
 
 ## Struktur
 
 ```
 src/
   components/
-    Globe/          # Three.js-Globus + Shader        (Schritt 6)
-    CrossSection/   # Canvas-Bohransicht              (Schritte 4–5)
-    HUD/                                              (Schritt 5)
-    Screens/        # Title, Search, Globe, Drill, Result
-    ui/             # Button, Panel, Tag, ScreenFx …
-  data/             # Schichtmodell, Fakten, Achievements
-  services/         # Geocoding, Elevation, Geologie
-  audio/
+    Globe/          # Three.js-Szene, Erdtextur, Achse, Kameraführung
+    ui/             # Button, Panel, Tag, DataList, ScreenFx
+    AddressSearch   # Eingabe mit Vorschlägen
+    ResultPanel     # Auswertung des Gegenpunkts
+  services/         # Geocoding, Höhe, gemeinsame HTTP-Basis
   store/            # Zustand-Store
-  lib/              # Typen, Formatierung, Motion-Hook
+  lib/              # Geometrie (+ Test), Typen, Formatierung
 ```
 
 ## Design-System
 
-Alle Tokens stecken in `src/index.css` unter `@theme` und sind damit als
-Tailwind-Klassen verfügbar.
+Tokens stehen in `src/index.css` unter `@theme` und sind damit als
+Tailwind-Klassen verfügbar: dunkle Flächen, eine Erdton-Rampe, Cyan als
+einziger kalter Akzent für die Bedienung, Rot allein für die Achse. Schriften
+(*Archivo Black*, *Space Grotesk*, *Silkscreen*) liegen lokal unter
+`public/fonts` – keine Requests an Dritte, kein Aufblitzen der Fallback-Schrift.
 
-- **Flächen** `abyss` · `void` · `night` · `dusk` · `steel` · `ash` · `bone`
-- **Kalter Akzent** `cyan` und Abstufungen – für UI und Bohrer, damit sich
-  beides immer vom Untergrund abhebt
-- **Erdtöne** `soil` → `clay` → `sand` → `ocher` → `rust` → `ember` → `magma`
-  → `flare` → `whitehot`; die Rampe wird nach unten hin glühender
-- **Signal** `warn` · `danger` · `ok`
-
-Schriften: *Archivo Black* für Headlines, *Space Grotesk* für Fließtext und
-Zahlen, *Silkscreen* als Pixel-Font für Labels. Die Dateien liegen lokal unter
-`public/fonts` (latin-Subset, zusammen ~57 KB) – keine Requests an Dritte, kein
-Aufblitzen der Fallback-Schrift.
-
-Chrome-Utilities: `clip-bevel`, `clip-bevel-sm`, `clip-tag`, `clip-notch`,
-`hazard-stripes`, `rivets`. Post-Processing (`ScreenFx`) legt Film-Grain,
-Scanlines und Vignette bei je ~5 % Deckkraft über die App.
-
-`prefers-reduced-motion` wird respektiert: dekorative Animationen laufen per
-CSS-Media-Query nicht, für alles Weitere gibt es den Hook
-`usePrefersReducedMotion()`.
-
-## Routing
-
-Die Screens sind eine Zustandsmaschine im Store (`src/store/gameStore.ts`),
-kein URL-Router: ANTIPODE ist ein Spiel, kein Dokument – ein Zurück-Button
-mitten in der Bohrung würde mehr kaputt machen als er hilft.
-
-```
-title → search → globe → drill → result
-                   ↑                 │
-                   └─────────────────┘
-```
+`prefers-reduced-motion` wird respektiert: Kamerafahrten und Pulsringe
+entfallen dann, die Anzeige bleibt vollständig.

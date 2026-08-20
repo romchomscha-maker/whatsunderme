@@ -1,73 +1,82 @@
 import { create } from 'zustand'
-import type { DrillSite, ScreenId } from '../lib/types'
+import type { DrillSite, GeoPoint } from '../lib/types'
+import { antipode } from '../lib/geo'
+import { reverseGeocode, toSite, type Suggestion } from '../services/geocoding'
+import { getElevation, type ElevationResult } from '../services/elevation'
 
 /**
- * Zentraler Spiel-State.
+ * Zentraler Zustand des Tools.
  *
- * Die Screens sind eine simple Zustandsmaschine statt eines URL-Routers:
- * ANTIPODE ist ein Spiel, kein Dokument – Zurück-Button und Deep-Links
- * würden mitten in einer Bohrung mehr kaputt machen als sie helfen.
+ * Drei Phasen, mehr braucht es nicht:
+ *   leer      – noch keine Adresse gewählt, Globus dreht sich
+ *   gesetzt   – Adresse markiert, Globus ist undurchsichtig
+ *   aufgedeckt – Globus wird durchscheinend, die Achse ist sichtbar
  */
+export type Phase = 'empty' | 'located' | 'revealed'
 
-/** Erlaubte Übergänge. Verhindert, dass ein Screen ohne Ziel aufgeht. */
-const TRANSITIONS: Record<ScreenId, ScreenId[]> = {
-  title: ['search'],
-  search: ['title', 'globe'],
-  globe: ['search', 'drill'],
-  drill: ['globe', 'result'],
-  result: ['search', 'globe'],
+export interface PointInfo {
+  point: GeoPoint
+  label: string | null
+  elevation: ElevationResult | null
+  /** Konnte die Rückwärtssuche überhaupt antworten? */
+  lookup?: 'found' | 'empty' | 'failed'
 }
 
-interface GameState {
-  screen: ScreenId
-  /** Screen, der gerade ausgeblendet wird – für die Übergangs-Animation. */
-  leavingScreen: ScreenId | null
+interface State {
+  phase: Phase
   site: DrillSite | null
+  /** Was am Startpunkt liegt – Höhe über NN. */
+  origin: PointInfo | null
+  /** Was am Gegenpunkt liegt – Ortsname und Wassertiefe. */
+  target: PointInfo | null
+  loadingTarget: boolean
 
-  /** Startet stumm: Browser erlauben Audio erst nach einer Interaktion. */
-  muted: boolean
-  /** Hat der Spieler schon irgendwo geklickt? Erst dann darf Audio starten. */
-  hasInteracted: boolean
-
-  goTo: (screen: ScreenId) => void
-  setSite: (site: DrillSite | null) => void
-  toggleMute: () => void
-  markInteracted: () => void
-  /** Zurück auf Anfang, Sammlung und Rekorde bleiben erhalten. */
+  selectSite: (suggestion: Suggestion) => void
+  reveal: () => Promise<void>
   reset: () => void
 }
 
-/** Dauer der Ausblend-Animation – muss zu `.screen-exit` in index.css passen. */
-export const SCREEN_EXIT_MS = 240
-
-export const useGameStore = create<GameState>((set, get) => ({
-  screen: 'title',
-  leavingScreen: null,
+export const useAppStore = create<State>((set, get) => ({
+  phase: 'empty',
   site: null,
-  muted: true,
-  hasInteracted: false,
+  origin: null,
+  target: null,
+  loadingTarget: false,
 
-  goTo: (screen) => {
-    const current = get().screen
-    if (current === screen) return
+  selectSite: (suggestion) => {
+    const site = toSite(suggestion)
+    set({ phase: 'located', site, origin: null, target: null, loadingTarget: false })
 
-    if (!TRANSITIONS[current].includes(screen)) {
-      // Kein harter Fehler: im Zweifel lieber navigieren als das Spiel blockieren.
-      console.warn(`[antipode] Ungültiger Screen-Wechsel: ${current} → ${screen}`)
-    }
-
-    set({ screen, leavingScreen: current })
-    window.setTimeout(() => {
-      // Nur aufräumen, wenn inzwischen kein neuer Wechsel gestartet wurde.
-      if (get().leavingScreen === current) set({ leavingScreen: null })
-    }, SCREEN_EXIT_MS)
+    // Die Höhe am Startpunkt nachladen – blockiert nichts, der Marker steht schon.
+    void getElevation(site).then((elevation) => {
+      if (get().site !== site) return // Inzwischen andere Adresse gewählt.
+      set({
+        origin: { point: site, label: site.label, elevation },
+        site: { ...site, elevation: elevation.meters },
+      })
+    })
   },
 
-  setSite: (site) => set({ site }),
-  toggleMute: () => set((s) => ({ muted: !s.muted })),
-  markInteracted: () => {
-    if (!get().hasInteracted) set({ hasInteracted: true })
+  reveal: async () => {
+    const site = get().site
+    if (!site || get().phase === 'revealed') return
+
+    const point = antipode(site)
+    // Sofort umschalten: Der Globus wird durchscheinend, während die Daten laufen.
+    set({ phase: 'revealed', loadingTarget: true, target: { point, label: null, elevation: null } })
+
+    const [place, elevation] = await Promise.all([
+      reverseGeocode(point),
+      getElevation(point),
+    ])
+
+    if (get().site !== site) return // Adresse wurde zwischenzeitlich gewechselt.
+    set({
+      target: { point, label: place.label, elevation, lookup: place.status },
+      loadingTarget: false,
+    })
   },
 
-  reset: () => set({ screen: 'title', leavingScreen: null, site: null }),
+  reset: () =>
+    set({ phase: 'empty', site: null, origin: null, target: null, loadingTarget: false }),
 }))

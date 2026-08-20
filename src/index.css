@@ -174,18 +174,6 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
 
-@utility clip-notch {
-  /* Beide oberen Ecken gekappt – für Karten die von unten reinfahren. */
-  clip-path: polygon(
-    0 12px,
-    12px 0,
-    calc(100% - 12px) 0,
-    100% 12px,
-    100% 100%,
-    0 100%
-  );
-}
-
 /* Warnstreifen – Deko für Ränder von Gefahren-Panels. */
 @utility hazard-stripes {
   background-image: repeating-linear-gradient(
@@ -252,28 +240,6 @@
    Bewegung
    ========================================================================= */
 
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  42% {
-    opacity: 1;
-  }
-  44% {
-    opacity: 0.55;
-  }
-  46% {
-    opacity: 1;
-  }
-  62% {
-    opacity: 0.75;
-  }
-  64% {
-    opacity: 1;
-  }
-}
-
 @keyframes pulse-soft {
   0%,
   100% {
@@ -281,17 +247,6 @@
   }
   50% {
     opacity: 0.35;
-  }
-}
-
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -311,45 +266,6 @@
   }
 }
 
-.anim-flicker {
-  animation: flicker 4s infinite steps(1, end);
-}
-
-.anim-rise {
-  animation: rise-in 0.5s var(--ease-out-hard) both;
-}
-
-/* Screen-Übergänge – vom Router gesteuert. */
-@keyframes screen-in {
-  from {
-    opacity: 0;
-    transform: scale(0.985) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes screen-out {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.015);
-  }
-}
-
-.screen-enter {
-  animation: screen-in 0.42s var(--ease-out-hard) both;
-}
-
-.screen-exit {
-  animation: screen-out 0.24s var(--ease-in-hard) both;
-}
-
 /* =========================================================================
    prefers-reduced-motion: Bewegung raus, Lesbarkeit bleibt.
    ========================================================================= */
@@ -366,5 +282,11 @@
 
   .fx-grain {
     animation: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
   }
 }

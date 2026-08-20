@@ -43,7 +43,7 @@ if (embedded === 0) throw new Error('Keine Schrift-URLs im CSS gefunden – Pfad
 // `</script>` im Bundle würde den umschließenden Tag vorzeitig schließen.
 const safeJs = js.replace(/<\/script/gi, '<\\/script')
 
-const html = `<title>ANTIPODE</title>
+const html = `<title>Was ist unter mir?</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <style>
 ${css}

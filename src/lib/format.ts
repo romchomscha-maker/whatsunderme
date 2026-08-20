@@ -17,12 +17,6 @@ export function formatCoords(lat: number, lon: number): string {
   return `${formatNumber(Math.abs(lat), 3)}° ${ns} / ${formatNumber(Math.abs(lon), 3)}° ${ew}`
 }
 
-/** Meter, ab 10 km in Kilometern. */
-export function formatDepth(meters: number): string {
-  if (Math.abs(meters) >= 10_000) return `${formatNumber(meters / 1000, 1)} km`
-  return `${formatNumber(meters)} m`
-}
-
 /** Höhe über NN, mit Vorzeichen und Hinweis unter dem Meeresspiegel. */
 export function formatElevation(meters: number | null): string {
   if (meters === null) return '—'

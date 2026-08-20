@@ -1,6 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
-import { useGameStore } from '../../store/gameStore'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
@@ -51,11 +50,9 @@ export function Button({
   glyph,
   className,
   children,
-  onPointerDown,
   disabled,
   ...rest
 }: ButtonProps) {
-  const markInteracted = useGameStore((s) => s.markInteracted)
   const offset = OFFSET[size]
 
   return (
@@ -81,10 +78,6 @@ export function Button({
       <button
         {...rest}
         disabled={disabled}
-        onPointerDown={(e) => {
-          markInteracted()
-          onPointerDown?.(e)
-        }}
         className={cn(
           'clip-bevel-sm relative z-10 inline-flex items-center justify-center gap-2',
           'font-display uppercase whitespace-nowrap',

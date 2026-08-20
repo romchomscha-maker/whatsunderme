@@ -17,5 +17,3 @@ export interface DrillSite extends GeoPoint {
   /** Land-ISO-Code, falls bekannt. */
   countryCode?: string
 }
-
-export type ScreenId = 'title' | 'search' | 'globe' | 'drill' | 'result'
