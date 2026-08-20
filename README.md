@@ -32,6 +32,10 @@ npm install
 npm run dev      # Dev-Server
 npm run build    # Production-Build nach dist/
 npm run lint
+
+# Alles in eine einzige HTML-Datei backen (CSS, JS und Schriften inline).
+# Lässt sich ohne Server öffnen und verschicken – praktisch zum Drüberschauen.
+npm run build:standalone
 ```
 
 Kein Backend, keine API-Keys. Deploybar als statische Site.

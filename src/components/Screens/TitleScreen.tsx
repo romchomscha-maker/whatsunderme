@@ -16,7 +16,7 @@ export function TitleScreen() {
           Ein Loch, quer durch den Planeten
         </p>
 
-        <Logo className="anim-flicker text-[clamp(3rem,17vw,8rem)] leading-none" />
+        <Logo className="anim-flicker text-[clamp(2.5rem,15vw,7.5rem)] leading-none" />
 
         <p className="font-ui max-w-sm text-sm leading-relaxed text-ash">
           Gib eine Adresse ein. Bohr senkrecht nach unten. Sieh, durch welche
