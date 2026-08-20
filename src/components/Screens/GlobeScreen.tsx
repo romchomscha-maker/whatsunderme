@@ -2,6 +2,7 @@ import { Screen } from '../ui/Screen'
 import { Button } from '../ui/Button'
 import { Panel } from '../ui/Panel'
 import { Tag } from '../ui/Tag'
+import { DataList } from '../ui/DataList'
 import { useGameStore } from '../../store/gameStore'
 import { formatCoords, formatElevation } from '../../lib/format'
 
@@ -31,16 +32,13 @@ export function GlobeScreen() {
 
         <Panel title="Bohrort" aside={site.countryCode} className="mt-4">
           <h2 className="text-2xl text-bone uppercase">{site.shortLabel ?? site.label}</h2>
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <dt className="text-ash">Koordinaten</dt>
-            <dd className="text-right text-bone tabular">
-              {formatCoords(site.lat, site.lon)}
-            </dd>
-            <dt className="text-ash">Höhe</dt>
-            <dd className="text-right text-bone tabular">
-              {formatElevation(site.elevation)}
-            </dd>
-          </dl>
+          <DataList
+            className="mt-3"
+            rows={[
+              { label: 'Koordinaten', value: formatCoords(site.lat, site.lon) },
+              { label: 'Höhe', value: formatElevation(site.elevation) },
+            ]}
+          />
         </Panel>
 
         <div className="mt-5 flex items-center justify-between gap-3">

@@ -2,6 +2,7 @@ import { Screen } from '../ui/Screen'
 import { Button } from '../ui/Button'
 import { Panel } from '../ui/Panel'
 import { Tag } from '../ui/Tag'
+import { DataList } from '../ui/DataList'
 import { useGameStore } from '../../store/gameStore'
 import { formatCoords } from '../../lib/format'
 
@@ -31,18 +32,13 @@ export function ResultScreen() {
         </h2>
 
         <Panel title="Antipode" className="mt-5">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <dt className="text-ash">Start</dt>
-            <dd className="text-right text-bone tabular">
-              {formatCoords(site.lat, site.lon)}
-            </dd>
-            <dt className="text-ash">Austritt</dt>
-            <dd className="text-right text-cyan tabular">
-              {formatCoords(antiLat, antiLon)}
-            </dd>
-            <dt className="text-ash">Strecke</dt>
-            <dd className="text-right text-bone tabular">12.742 km</dd>
-          </dl>
+          <DataList
+            rows={[
+              { label: 'Start', value: formatCoords(site.lat, site.lon) },
+              { label: 'Austritt', value: formatCoords(antiLat, antiLon), accent: true },
+              { label: 'Strecke', value: '12.742 km' },
+            ]}
+          />
         </Panel>
 
         <div className="mt-5 flex flex-wrap gap-3">
