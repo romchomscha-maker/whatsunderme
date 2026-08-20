@@ -3,6 +3,9 @@ import type { DrillSite, GeoPoint } from '../lib/types'
 import { antipode } from '../lib/geo'
 import { reverseGeocode, toSite, type Suggestion } from '../services/geocoding'
 import { getElevation, type ElevationResult } from '../services/elevation'
+import { classifyPoint } from '../services/landmask'
+import { nearestPlace } from '../services/offlinePlaces'
+import { countryNameFromNumeric } from '../lib/countries'
 
 /**
  * Zentraler Zustand des Tools.
@@ -20,6 +23,13 @@ export interface PointInfo {
   elevation: ElevationResult | null
   /** Konnte die Rückwärtssuche überhaupt antworten? */
   lookup?: 'found' | 'empty' | 'failed'
+  /** Aus den mitgelieferten Küstenlinien gerechnet, wenn kein Dienst antwortet. */
+  offline?: {
+    isLand: boolean
+    /** Bereits ins Deutsche übersetzt. */
+    country: string | null
+    nearest: { name: string; country: string; distanceKm: number } | null
+  }
 }
 
 interface State {
@@ -71,8 +81,25 @@ export const useAppStore = create<State>((set, get) => ({
     ])
 
     if (get().site !== site) return // Adresse wurde zwischenzeitlich gewechselt.
+
+    /*
+     * Wenn die Rückwärtssuche nicht geantwortet hat, bleibt die eigentliche
+     * Frage sonst offen. Land oder Wasser lässt sich aber aus den ohnehin
+     * mitgelieferten Küstenlinien bestimmen, und der nächste bekannte Ort
+     * macht aus nackten Koordinaten eine Auskunft.
+     */
+    let offline: PointInfo['offline']
+    if (place.status === 'failed') {
+      const land = classifyPoint(point)
+      offline = {
+        isLand: land.isLand,
+        country: countryNameFromNumeric(land.countryId, land.country),
+        nearest: nearestPlace(point),
+      }
+    }
+
     set({
-      target: { point, label: place.label, elevation, lookup: place.status },
+      target: { point, label: place.label, elevation, lookup: place.status, offline },
       loadingTarget: false,
     })
   },

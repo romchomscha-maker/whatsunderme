@@ -1,4 +1,5 @@
 import { fetchJson, makeCache, makeRateLimiter } from './http'
+import { searchOffline } from './offlinePlaces'
 import type { DrillSite, GeoPoint } from '../lib/types'
 
 /**
@@ -51,13 +52,26 @@ function buildLabel(p: PhotonFeature['properties']): { label: string; short: str
   return { label: deduped.join(', '), short }
 }
 
-/** Adressvorschläge für die Eingabe. Leere Liste statt Fehler – nie blockieren. */
+export interface SearchOutcome {
+  results: Suggestion[]
+  /** Kam die Antwort aus dem mitgelieferten Index statt aus dem Netz? */
+  offline: boolean
+}
+
+/**
+ * Adressvorschläge für die Eingabe.
+ *
+ * Erst Photon – das kennt auch Hausnummern. Wenn es nicht erreichbar ist,
+ * übernimmt der mitgelieferte Ortsindex. Der findet nur Orte, dafür immer;
+ * ohne ihn bliebe die Suche z. B. hinter einer strengen
+ * Content-Security-Policy dauerhaft leer.
+ */
 export async function searchPlaces(
   query: string,
   signal?: AbortSignal,
-): Promise<Suggestion[]> {
+): Promise<SearchOutcome> {
   const q = query.trim()
-  if (q.length < 2) return []
+  if (q.length < 2) return { results: [], offline: false }
 
   const url = `${PHOTON}?q=${encodeURIComponent(q)}&limit=6&lang=de`
 
@@ -65,7 +79,7 @@ export async function searchPlaces(
     const data = await fetchJson<{ features?: PhotonFeature[] }>(url, { signal })
     const seen = new Set<string>()
 
-    return (data.features ?? [])
+    const results = (data.features ?? [])
       .filter((f) => Array.isArray(f.geometry?.coordinates))
       .map((f) => {
         const [lon, lat] = f.geometry.coordinates
@@ -78,10 +92,18 @@ export async function searchPlaces(
         seen.add(s.label)
         return true
       })
+
+    // Antwort ohne Treffer: der Ortsindex kennt vielleicht mehr.
+    if (results.length === 0) {
+      const local = searchOffline(q)
+      if (local.length > 0) return { results: local, offline: true }
+    }
+
+    return { results, offline: false }
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
-    console.warn('[antipode] Photon nicht erreichbar:', err)
-    return []
+    console.warn('[antipode] Photon nicht erreichbar, nutze den Ortsindex:', err)
+    return { results: searchOffline(q), offline: true }
   }
 }
 

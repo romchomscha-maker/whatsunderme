@@ -23,6 +23,8 @@ export function AddressSearch() {
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const [failed, setFailed] = useState(false)
+  /** Kamen die Vorschläge aus dem mitgelieferten Index statt aus dem Netz? */
+  const [offline, setOffline] = useState(false)
 
   const listId = useId()
   const boxRef = useRef<HTMLDivElement>(null)
@@ -54,8 +56,9 @@ export function AddressSearch() {
       try {
         const found = await searchPlaces(q, controller.signal)
         if (controller.signal.aborted) return
-        setResults(found)
-        setFailed(found.length === 0)
+        setResults(found.results)
+        setOffline(found.offline)
+        setFailed(found.results.length === 0)
         setHighlight(0)
         setOpen(true)
       } catch {
@@ -145,6 +148,17 @@ export function AddressSearch() {
           role="listbox"
           className="clip-bevel-sm absolute top-full right-0 left-0 z-30 mt-1 max-h-72 overflow-y-auto border-2 border-steel bg-night shadow-2xl"
         >
+          {/* Ganz oben, sonst steht der Hinweis unter der Liste außerhalb
+              des sichtbaren Bereichs. */}
+          {offline && results.length > 0 && (
+            <li className="border-b-2 border-steel bg-dusk/60 px-4 py-2">
+              <p className="text-[11px] leading-relaxed text-ash">
+                Kein Netz – gesucht wird im mitgelieferten Ortsverzeichnis.
+                Orte ja, Hausnummern nein.
+              </p>
+            </li>
+          )}
+
           {results.map((s, i) => (
             <li key={`${s.label}-${s.lat}-${s.lon}`} role="option" aria-selected={i === highlight}>
               <button
@@ -159,9 +173,11 @@ export function AddressSearch() {
                 {/* `pointer-events-none`: der Klick soll immer beim Button
                     landen, nie bei einem der Textknoten darin. */}
                 <span className="pointer-events-none text-sm text-bone">{s.shortLabel}</span>
-                <span className="pointer-events-none truncate text-xs text-ash">
-                  {s.label}
-                </span>
+                {s.label !== s.shortLabel && (
+                  <span className="pointer-events-none truncate text-xs text-ash">
+                    {s.label}
+                  </span>
+                )}
               </button>
             </li>
           ))}

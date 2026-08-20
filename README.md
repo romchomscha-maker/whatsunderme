@@ -38,6 +38,32 @@ Die Umrechnung Kugelkoordinaten → Szene muss dabei exakt zur UV-Abbildung von
 `THREE.SphereGeometry` passen, sonst sitzt der Marker neben dem Ort. Die
 Herleitung steht als Kommentar an `latLonToVector3`.
 
+## Ohne Netz
+
+Nicht überall sind Anfragen an fremde Hosts erlaubt – eine Seite mit strikter
+Content-Security-Policy blockiert sie komplett, und dann antwortet Photon nie.
+Damit das Tool trotzdem etwas taugt, liegen zwei Dinge bei:
+
+- **Ortsverzeichnis** (`src/data/places.ts`, 17.244 Orte, ~450 kB): weltweit ab
+  40.000 Einwohnern, im deutschsprachigen Raum ab 2.000. Findet Orte, keine
+  Hausnummern. Erzeugt mit `node scripts/build-places.mjs`.
+- **Küstenlinien**: Land oder Wasser am Gegenpunkt wird per Punkt-in-Polygon
+  aus denselben Daten gerechnet, aus denen auch die Globustextur entsteht.
+  Bei 1:110 Mio. ist die Küste grob vereinfacht – das Ergebnis wird deshalb
+  als *Schätzung* ausgewiesen und der nächste bekannte Ort dazugestellt.
+
+Die Suche nimmt immer erst Photon und fällt nur zurück, wenn es nicht
+antwortet oder nichts findet. Sichtbar wird das durch einen Hinweis über der
+Vorschlagsliste.
+
+Der Ortsindex entsteht aus zwei GeoNames-Ablegern, weil keiner allein reicht:
+`all-the-cities` hat Einwohnerzahlen (zum Sortieren), aber anglisierte Namen
+("Munich"); `cities.json` hat die Namen in Landessprache ("Köln", "Zülpich"),
+dafür keine Einwohnerzahlen. Zusammengeführt wird über die Koordinaten – aber
+nur, wenn sich die Namen allein durch Diakritika unterscheiden, sonst würde
+aus "Nurnberg" das englische "Nuremberg". Echte Exonyme stehen als kurze
+Liste im Build-Skript.
+
 ## Datenquellen
 
 Alle frei und ohne Schlüssel. Jeder Aufruf hat 5 s Zeitlimit und einen
@@ -54,12 +80,13 @@ Ergebnisse landen in `localStorage`. **Fehlgeschlagene** Abfragen werden
 bewusst *nicht* gecacht: eine kurze Störung für immer festzuschreiben wäre
 schlimmer als eine zweite Anfrage.
 
-Der Gegenpunkt kennt drei Zustände, die auseinandergehalten werden:
+Der Gegenpunkt kennt drei Güteklassen, die auseinandergehalten werden:
 
-- **benannter Ort** – der seltene Fall, dass drüben Land ist
+- **benannter Ort** – der Kartendienst kennt ihn; der seltene Fall, dass
+  drüben Land ist
 - **offenes Meer** – der Dienst kennt den Punkt, dort ist schlicht nichts
-- **keine Antwort** – der Dienst war nicht erreichbar; dann wird weder Land
-  noch Wasser behauptet, nur die gerechneten Koordinaten stehen da
+- **geschätzt** – kein Dienst erreichbar; Land oder Wasser kommt dann aus den
+  mitgelieferten Küstenlinien und wird auch so beschriftet
 
 ## Globus
 
@@ -87,7 +114,8 @@ src/
     ui/             # Button, Panel, Tag, DataList, ScreenFx
     AddressSearch   # Eingabe mit Vorschlägen
     ResultPanel     # Auswertung des Gegenpunkts
-  services/         # Geocoding, Höhe, gemeinsame HTTP-Basis
+  data/             # ERZEUGT: Ortsverzeichnis, Länderkennungen
+  services/         # Geocoding, Höhe, Offline-Suche, Landmaske, HTTP-Basis
   store/            # Zustand-Store
   lib/              # Geometrie (+ Test), Typen, Formatierung
 ```

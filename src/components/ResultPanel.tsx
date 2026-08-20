@@ -8,10 +8,12 @@ import { EARTH_DIAMETER_KM } from '../lib/geo'
 /**
  * Was am Gegenpunkt liegt.
  *
- * Drei Fälle, die sauber auseinandergehalten werden müssen: ein benannter Ort,
- * offenes Meer (der Dienst kennt den Punkt, dort ist schlicht nichts), und
- * "keine Antwort". Im letzten Fall wird nichts behauptet – weder Land noch
- * Wasser –, sonst steht am Ende eine erfundene Auskunft auf dem Schirm.
+ * Die Auskunft hat drei Güteklassen, die auseinandergehalten werden müssen:
+ * ein benannter Ort vom Kartendienst, offenes Meer (der Dienst kennt den
+ * Punkt, dort ist nichts), oder – wenn kein Dienst antwortet – eine
+ * Einschätzung aus den mitgelieferten Küstenlinien. Die letzte wird als
+ * Schätzung ausgewiesen, nicht als Auskunft: bei 1:110 Mio. ist die
+ * Küstenlinie grob vereinfacht.
  */
 export function ResultPanel() {
   const target = useAppStore((s) => s.target)
@@ -19,29 +21,26 @@ export function ResultPanel() {
 
   if (!target) return null
 
-  const { point, label, elevation, lookup } = target
+  const { point, label, elevation, lookup, offline } = target
   const depth = elevation?.meters ?? null
-  const water = elevation?.isWater === true
   const knowsPlace = lookup === 'found' && label
-  const unreachable = !loading && lookup === 'failed' && elevation?.source === null
+
+  // Ohne Dienst entscheidet die gerechnete Küstenlinie über Land oder Wasser.
+  const water = offline ? !offline.isLand : elevation?.isWater === true
 
   const headline = loading
     ? 'Wird ermittelt …'
     : knowsPlace
       ? label
-      : unreachable
-        ? 'Nicht ermittelbar'
+      : offline
+        ? (offline.country ?? 'Offenes Meer')
         : 'Offenes Meer'
 
   const badge = loading
     ? { tone: 'muted' as const, text: 'Lädt' }
-    : unreachable
-      ? { tone: 'muted' as const, text: 'Keine Daten' }
-      : water
-        ? { tone: 'cyan' as const, text: 'Im Wasser' }
-        : knowsPlace
-          ? { tone: 'warn' as const, text: 'An Land' }
-          : { tone: 'cyan' as const, text: 'Im Wasser' }
+    : water
+      ? { tone: 'cyan' as const, text: offline ? 'Wasser (geschätzt)' : 'Im Wasser' }
+      : { tone: 'warn' as const, text: offline ? 'Land (geschätzt)' : 'An Land' }
 
   const heightValue =
     depth === null
@@ -52,24 +51,31 @@ export function ResultPanel() {
         ? `${formatNumber(Math.abs(depth))} m unter dem Meeresspiegel`
         : `${formatNumber(depth)} m ü. NN`
 
+  const rows = [
+    { label: 'Koordinaten', value: formatCoords(point.lat, point.lon), accent: true },
+    { label: water ? 'Wassertiefe' : 'Höhe', value: heightValue },
+    { label: 'Strecke', value: `${formatNumber(EARTH_DIAMETER_KM)} km` },
+  ]
+
+  if (offline?.nearest) {
+    rows.splice(1, 0, {
+      label: 'Nächster Ort',
+      value: `${offline.nearest.name} · ${formatNumber(Math.round(offline.nearest.distanceKm))} km`,
+      accent: false,
+    })
+  }
+
   return (
     <Panel
       title="Gegenpunkt"
-      aside={elevation?.source === 'gebco' ? 'GEBCO' : undefined}
+      aside={elevation?.source === 'gebco' ? 'GEBCO' : offline ? 'gerechnet' : undefined}
       hazard={water}
     >
       <Tag tone={badge.tone}>{badge.text}</Tag>
 
       <h2 className="mt-3 text-xl leading-tight text-bone uppercase">{headline}</h2>
 
-      <DataList
-        className="mt-3"
-        rows={[
-          { label: 'Koordinaten', value: formatCoords(point.lat, point.lon), accent: true },
-          { label: water ? 'Wassertiefe' : 'Höhe', value: heightValue },
-          { label: 'Strecke', value: `${formatNumber(EARTH_DIAMETER_KM)} km` },
-        ]}
-      />
+      <DataList className="mt-3" rows={rows} />
 
       {water && depth !== null && (
         <p className="mt-3 border-t border-steel/60 pt-3 text-xs leading-relaxed text-ash">
@@ -79,10 +85,12 @@ export function ResultPanel() {
         </p>
       )}
 
-      {unreachable && (
+      {offline && (
         <p className="mt-3 border-t border-steel/60 pt-3 text-xs leading-relaxed text-ash">
-          Die Kartendienste antworten gerade nicht. Die Koordinaten stimmen
-          trotzdem – sie werden hier gerechnet, nicht abgefragt.
+          Die Kartendienste antworten hier nicht. Land oder Wasser ist aus den
+          mitgelieferten Küstenlinien gerechnet – nah am Ufer kann das kippen.
+          Die Koordinaten stimmen unabhängig davon: sie werden gerechnet, nicht
+          abgefragt.
         </p>
       )}
     </Panel>
